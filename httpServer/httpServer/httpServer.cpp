@@ -1,18 +1,19 @@
 ﻿#include "pch.h"
 #include <iostream>
+#include <fstream>
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 #pragma comment (lib, "Ws2_32.lib")
 int main(int argc, char* argv[])
 {
 	WSAData wsaData;
-	WORD DLLVersion = MAKEWORD(2, 1); //дает версию 
-	if(WSAStartup(DLLVersion, &wsaData) != 0) //Грузим библ
+	WORD Version = MAKEWORD(2, 1); //дает версию 
+	if(WSAStartup(Version, &wsaData) != 0) //Грузим библ
 	{
-		std::cout << "Escape, error: lib not load" << std::endl;
+		std::cout << "Error: Library not loaded" << std::endl;
 		exit(1);
 	}
-	else std::cout << "Lib connected !!!" << std::endl;
+	else std::cout << "Library connected" << std::endl;
 
 	SOCKADDR_IN adrSock; //хранение адреса
 	static const char LOCAL_HOST[] = "127.0.0.1";
@@ -22,13 +23,16 @@ int main(int argc, char* argv[])
 	adrSock.sin_port = htons(8015);
 	adrSock.sin_family = AF_INET;
 
-	SOCKET socnasok = socket(AF_INET, SOCK_STREAM, NULL);
-	bind(socnasok, (SOCKADDR*)&adrSock,sizeof(adrSock)); //назначение
-	listen(socnasok, SOMAXCONN); // второе значение хау мач запрос 
+	SOCKET lsock = socket(AF_INET, SOCK_STREAM, NULL);
+	if (lsock == -1)
+	{
+		std::cout << "Error : Invalid socket" << std::endl;
+	}
+	bind(lsock, (SOCKADDR*)&adrSock,sizeof(adrSock)); //назначение
+	listen(lsock, SOMAXCONN); // второе значение скок запрос 
 
 	SOCKET newUserConnection;
-	newUserConnection = accept(socnasok, (SOCKADDR*)&adrSock, &sizeAddr);
-
+	newUserConnection = accept(lsock, (SOCKADDR*)&adrSock, &sizeAddr);
 	if (newUserConnection == 0) // проверка коннект
 	{
 		std::cout << "Error connection" << std::endl;
@@ -40,6 +44,43 @@ int main(int argc, char* argv[])
 		send(newUserConnection, wmsg, sizeof(wmsg), NULL); //  SEND Welcome msg
 		
 	}
+
+	char filename[FILENAME_MAX];
+	const int bufer=1024;
+	char bufferFile[bufer];
+	bool closeConnection = false;
+	std::ifstream file;
+
+	do
+	{
+		memset(filename, 0, FILENAME_MAX);
+		int byRecv = recv(newUserConnection, filename, FILENAME_MAX, NULL);
+
+		file.open(filename, std::ios::binary);
+		if (file.is_open())
+		{
+			//send(newUserConnection, (char*)&Нахождение, sizeof(int), NULL); нахождение файла сделать если не найден прерывать
+			file.seekg(0, std::ios::end); // Размер файла
+			long fileSize = file.tellg(); // Текущая позиция размер файла
+			send(newUserConnection, (char*)&fileSize, sizeof(long), NULL); // Тож проверку запилить
+			file.seekg(0, std::ios::beg);
+			do
+			{
+				file.read(bufferFile, bufer);
+				if (file.gcount() > 0)
+				{
+					int bySendInfo = send(newUserConnection, bufferFile, file.gcount(), NULL);
+					if (bySendInfo == 0 || bySendInfo == -1)
+					{
+						closeConnection = true;
+						break;
+					}
+				}
+			} while (file.gcount() > 0);
+			file.close();
+		}
+
+	} while (!closeConnection);
 
 	return 0;
 }

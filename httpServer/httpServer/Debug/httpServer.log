@@ -1,2 +1,4 @@
 ﻿  httpServer.cpp
-  httpServer.vcxproj -> C:\Users\Gleb\source\repos\httpServer\Debug\httpServer.exe
+c:\users\gleb\desktop\httpservak\httpserver\httpserver\httpserver.cpp(64): warning C4244: инициализация: преобразование "std::streamoff" в "long", возможна потеря данных
+c:\users\gleb\desktop\httpservak\httpserver\httpserver\httpserver.cpp(72): warning C4244: аргумент: преобразование "std::streamsize" в "int", возможна потеря данных
+  httpServer.vcxproj -> C:\Users\Gleb\Desktop\httpservak\httpServer\Debug\httpServer.exe
