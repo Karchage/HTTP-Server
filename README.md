@@ -1,3 +1,5 @@
 # HTTP-Server
-### Use lib
-> 1) WinSock2
+> ### Use lib
+* WinSock2
+* Ws2tcpip
+* iostream
