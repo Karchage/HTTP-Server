@@ -33,47 +33,67 @@ int main(int argc, char* argv[])
 	char wmsg[64];
 	recv(Connection, wmsg, sizeof(wmsg), NULL); //get msg fr serv
 	std::cout << wmsg;
-
-
-	char fileName[FILENAME_MAX];
+	// ===============================================================================
+	bool closeConnection = false;
+	//char welcomeMsg[255];
+	const int BUFFER_SIZE = 1024;
+	char bufferFile[BUFFER_SIZE];
+	char fileRequested[FILENAME_MAX]; //Имя файла
 	std::ofstream file;
-	const int buffer = 1024;
-	char bufferFile[buffer];
-	bool closeConnect = false;
-	long fileSize = 0;
+	int codeFile = 404;
+	const int trueFile = 200;
+	const int badFile = 404;
+	long fileRequestedsize = 0;
+	
 	do
 	{
 		int fileDownloaded = 0;
-		memset(fileName, 0, FILENAME_MAX);
-		std::cout << " File name:" << std::endl; // Тут торчит
-		std::cin.getline(fileName, FILENAME_MAX);
+		//memset(fileRequested, 0, FILENAME_MAX);
+		std::cout << "File name : ";
+		std::cin.getline(fileRequested, FILENAME_MAX);
 
-		send(Connection, fileName, FILENAME_MAX, NULL);
-
-		int byRecv = recv(Connection, (char*)&fileSize, sizeof(long), NULL);
-		if (byRecv == 0)
+		int sendInf = send(Connection, fileRequested, FILENAME_MAX, NULL);
+		if (sendInf == 0 || sendInf == -1)
 		{
-			closeConnect = true;
+			closeConnection = true;
 			break;
 		}
-
-		file.open(fileName, std::ios::binary, std::ios::trunc);
-		do
+		int byRecv = recv(Connection, (char*)&codeFile, sizeof(int), NULL);
+		if (byRecv == 0 || byRecv == -1)
 		{
-			memset(bufferFile, 0, buffer);
-			byRecv = recv(Connection, bufferFile, buffer, NULL);
-			if (byRecv == 0)
+			closeConnection = true;
+			break;
+		}
+		if (codeFile == 200)
+		{
+			byRecv = recv(Connection, (char*)&fileRequestedsize, sizeof(long), NULL);
+			if (byRecv == 0 || byRecv == -1)
 			{
-				closeConnect = true;
+				closeConnection = true;
 				break;
 			}
-			file.write(bufferFile, byRecv);
-			fileDownloaded += byRecv;
+			file.open(fileRequested, std::ios::binary | std::ios::trunc);
 
-		} while (fileDownloaded < fileSize);
-
-	} while (!closeConnect);
-
+			do
+			{
+				memset(bufferFile, 0, BUFFER_SIZE);
+				byRecv = recv(Connection, bufferFile, BUFFER_SIZE, NULL);
+				if (byRecv == 0 || byRecv == -1)
+				{
+					closeConnection = true;
+					break;
+				}
+				file.write(bufferFile, byRecv);
+				fileDownloaded += byRecv;
+			} 
+			while (fileDownloaded < fileRequestedsize);
+			file.close();
+		}
+		else if (codeFile == 404)
+		{
+			std::cout << "File not found" << std::endl;
+		}
+	} while (!closeConnection);
 
 	system("pause");
 	return 0;

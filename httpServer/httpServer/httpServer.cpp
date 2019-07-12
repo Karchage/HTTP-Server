@@ -44,6 +44,12 @@ int main(int argc, char* argv[])
 		send(newUserConnection, wmsg, sizeof(wmsg), NULL); //  SEND Welcome msg
 		
 	}
+	//==========================================================================================
+
+
+	//signal code
+	const int trueFile = 200;
+	const int badFile = 404;
 
 	char filename[FILENAME_MAX];
 	const int bufer=1024;
@@ -53,31 +59,53 @@ int main(int argc, char* argv[])
 
 	do
 	{
-		memset(filename, 0, FILENAME_MAX);
-		int byRecv = recv(newUserConnection, filename, FILENAME_MAX, NULL);
+		//memset(filename, 0, FILENAME_MAX);
+		int byRecv = recv(newUserConnection, filename, FILENAME_MAX, NULL); //Имя файла
+		if (byRecv == 0 || byRecv == -1)
+		{
+			closeConnection = true;
+		}
 
-		file.open(filename, std::ios::binary);
+		file.open(filename, std::ios::binary); //Открываем поток файла в бинарке
 		if (file.is_open())
 		{
-			//send(newUserConnection, (char*)&Нахождение, sizeof(int), NULL); нахождение файла сделать если не найден прерывать
+			int sendInf = send(newUserConnection, (char*)&trueFile, sizeof(int), NULL); //нахождение файла сделать если не найден прерывать
+			if (sendInf == 0 || sendInf == -1)
+			{
+				closeConnection = true;
+			}
+
 			file.seekg(0, std::ios::end); // Размер файла
-			long fileSize = file.tellg(); // Текущая позиция размер файла
-			send(newUserConnection, (char*)&fileSize, sizeof(long), NULL); // Тож проверку запилить
-			file.seekg(0, std::ios::beg);
+			long fileSize = file.tellg(); // Текущая позиция =  размер файла
+			sendInf = send(newUserConnection, (char*)&fileSize, sizeof(long), NULL); // Тож проверку запилить
+			if (sendInf == 0 || sendInf == -1)
+			{
+				closeConnection = true;
+			}
+			file.seekg(0, std::ios::beg); // Сдвигаем на начало
 			do
 			{
 				file.read(bufferFile, bufer);
 				if (file.gcount() > 0)
 				{
-					int bySendInfo = send(newUserConnection, bufferFile, file.gcount(), NULL);
-					if (bySendInfo == 0 || bySendInfo == -1)
-					{
-						closeConnection = true;
-						break;
-					}
+					sendInf = send(newUserConnection, bufferFile, file.gcount(), NULL);
 				}
+				if (sendInf == 0 || sendInf == -1)
+				{
+					closeConnection = true;
+					break;
+				}
+				
 			} while (file.gcount() > 0);
 			file.close();
+		} 
+		else
+		{
+			int sendInf = send(newUserConnection, (char*)&badFile, sizeof(int), NULL);
+			if (sendInf == 0 || sendInf == -1)
+			{
+				closeConnection = true;
+			}
 		}
 
 	} while (!closeConnection);
