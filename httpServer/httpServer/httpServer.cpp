@@ -3,14 +3,12 @@
 #include <fstream>
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
-#include <set>
-#include <algorithm>
 
 #pragma comment (lib, "Ws2_32.lib")
 
-SOCKET Connection[100];
+SOCKET UserConnections[100];
 int counter = 0;
-void ClientHandler(int index)
+void sendFile(int index)
 {
 	const int trueFile = 200;
 	const int badFile = 404;
@@ -24,7 +22,7 @@ void ClientHandler(int index)
 	do
 	{
 		//memset(filename, 0, FILENAME_MAX);
-		int byRecv = recv(Connection[index], filename, FILENAME_MAX, NULL); //Имя файла
+		int byRecv = recv(UserConnections[index], filename, FILENAME_MAX, NULL); //Имя файла
 		if (byRecv == 0 || byRecv == -1)
 		{
 			closeConnection = true;
@@ -33,7 +31,7 @@ void ClientHandler(int index)
 		file.open(filename, std::ios::binary); //Открываем поток файла в бинарке
 		if (file.is_open())
 		{
-			int sendInf = send(Connection[index], (char*)&trueFile, sizeof(int), NULL); //нахождение файла сделать если не найден прерывать
+			int sendInf = send(UserConnections[index], (char*)&trueFile, sizeof(int), NULL); //нахождение файла сделать если не найден прерывать
 			if (sendInf == 0 || sendInf == -1)
 			{
 				closeConnection = true;
@@ -41,7 +39,7 @@ void ClientHandler(int index)
 
 			file.seekg(0, std::ios::end); // Размер файла
 			long fileSize = file.tellg(); // Текущая позиция =  размер файла
-			sendInf = send(Connection[index], (char*)&fileSize, sizeof(long), NULL); // Тож проверку запилить
+			sendInf = send(UserConnections[index], (char*)&fileSize, sizeof(long), NULL); // Тож проверку запилить
 			if (sendInf == 0 || sendInf == -1)
 			{
 				closeConnection = true;
@@ -52,7 +50,7 @@ void ClientHandler(int index)
 				file.read(bufferFile, bufer);
 				if (file.gcount() > 0)
 				{
-					sendInf = send(Connection[index], bufferFile, file.gcount(), NULL);
+					sendInf = send(UserConnections[index], bufferFile, file.gcount(), NULL);
 				}
 				if (sendInf == 0 || sendInf == -1)
 				{
@@ -65,7 +63,7 @@ void ClientHandler(int index)
 		}
 		else
 		{
-			int sendInf = send(index, (char*)&badFile, sizeof(int), NULL);
+			int sendInf = send(UserConnections[index], (char*)&badFile, sizeof(int), NULL);
 			if (sendInf == 0 || sendInf == -1)
 			{
 				closeConnection = true;
@@ -76,9 +74,6 @@ void ClientHandler(int index)
 }
 int main(int argc, char* argv[])
 {
-
-	//std::set<int> SlaveSockets;
-	
 
 	WSAData wsaData;
 	WORD Version = MAKEWORD(2, 1); //дает версию 
@@ -106,7 +101,6 @@ int main(int argc, char* argv[])
 	
 	
 	
-	//set_nonblock(lsock);
 	listen(lsock, SOMAXCONN); // второе значение скок запрос 
 	SOCKET userConnection;
 	for (int i = 0; i < 100; i++)
@@ -123,9 +117,9 @@ int main(int argc, char* argv[])
 			char wmsg[64] = "Welcome to http-server \n";
 			send(userConnection, wmsg, sizeof(wmsg), NULL); //  SEND Welcome msg
 			
-			Connection[i] = userConnection;
+			UserConnections[i] = userConnection;
 			counter++;
-			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL);
+			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)sendFile, (LPVOID)(i), NULL, NULL);
 		}
 	}
 	
