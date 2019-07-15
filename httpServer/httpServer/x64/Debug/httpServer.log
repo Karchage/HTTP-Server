@@ -1,0 +1,6 @@
+﻿  pch.cpp
+  httpServer.cpp
+C:\Users\glebk\Desktop\http-server\httpServer\httpServer\httpServer.cpp(41,18): warning C4244:  инициализация: преобразование "std::streamoff" в "long", возможна потеря данных
+C:\Users\glebk\Desktop\http-server\httpServer\httpServer\httpServer.cpp(53,68): warning C4244:  аргумент: преобразование "std::streamsize" в "int", возможна потеря данных
+C:\Users\glebk\Desktop\http-server\httpServer\httpServer\httpServer.cpp(122,74): warning C4312:  приведение типов: преобразование из "int" в "LPVOID" большего размера
+  httpServer.vcxproj -> C:\Users\glebk\Desktop\http-server\httpServer\x64\Debug\httpServer.exe

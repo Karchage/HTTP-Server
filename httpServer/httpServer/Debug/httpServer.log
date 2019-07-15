@@ -1,4 +1,3 @@
 ﻿  httpServer.cpp
-c:\users\gleb\desktop\httpservak\httpserver\httpserver\httpserver.cpp(56): warning C4244: инициализация: преобразование "std::streamoff" в "long", возможна потеря данных
-c:\users\gleb\desktop\httpservak\httpserver\httpserver\httpserver.cpp(68): warning C4244: аргумент: преобразование "std::streamsize" в "int", возможна потеря данных
+c:\users\gleb\desktop\httpservak\httpserver\httpserver\httpserver.cpp(27): warning C4101: cont: неиспользованная локальная переменная
   httpServer.vcxproj -> C:\Users\Gleb\Desktop\httpservak\httpServer\Debug\httpServer.exe
