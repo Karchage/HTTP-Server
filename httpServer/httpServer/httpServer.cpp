@@ -28,7 +28,7 @@ void ClientHandler(int index)
 	std::string htmlFile;
 
 	//char gete[] = "GET /123214.txt HTTP/1.1\r\n";
-	del = iss.find("\r\n") ;
+	del = iss.find("\r\n");
 	htmlFile = iss.substr(0, del);
 	del = htmlFile.find("HTTP");
 	del2 = htmlFile.find("/") + 1;
@@ -37,34 +37,34 @@ void ClientHandler(int index)
 	std::stringstream response; // сюда будет записываться ответ клиенту
 
 	std::ifstream f(htmlFile);
-	
+
 	std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 	content = str;
-		
+
 
 	f.close();
-		// Формируем весь ответ вместе с заголовками
-		response << "HTTP/1.1 200 OK \r\n"
-			<< "Content-Length: "
-			<< content.size()
-			<< "\r\n\r\n"
-			<< content;
-		int size = response.str().length() + content.size();
-		// Отправляем ответ клиенту с помощью функции send*/
-		send(Connection[index], response.str().c_str(), size, NULL);
+	// Формируем весь ответ вместе с заголовками
+	response << "HTTP/1.1 200 OK \r\n"
+		<< "Content-Length: "
+		<< content.size()
+		<< "\r\n\r\n"
+		<< content;
+	int size = response.str().length() + content.size();
+	// Отправляем ответ клиенту с помощью функции send*/
+	send(Connection[index], response.str().c_str(), size, NULL);
 
-		
-		closesocket(Connection[index]);
+
+	closesocket(Connection[index]);
 }
 int main(int argc, char* argv[])
 {
 
 	//std::set<int> SlaveSockets;
-	
+
 
 	WSAData wsaData;
 	WORD Version = MAKEWORD(2, 1); //дает версию 
-	if(WSAStartup(Version, &wsaData) != 0) //Грузим библ
+	if (WSAStartup(Version, &wsaData) != 0) //Грузим библ
 	{
 		std::cout << "Error: Library not loaded" << std::endl;
 		exit(1);
@@ -84,10 +84,10 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "Error : Invalid socket" << std::endl;
 	}
-	bind(lsock, (SOCKADDR*)&adrSock,sizeof(adrSock)); //назначение
-	
-	
-	
+	bind(lsock, (SOCKADDR*)&adrSock, sizeof(adrSock)); //назначение
+
+
+
 	//set_nonblock(lsock);
 	listen(lsock, SOMAXCONN); // второе значение скок запрос 
 	SOCKET userConnection;
@@ -104,13 +104,13 @@ int main(int argc, char* argv[])
 			std::cout << "Client connected !" << std::endl;
 			//char wmsg[64] = "Welcome to http-server \n";
 			//send(userConnection, wmsg, sizeof(wmsg), NULL); //  SEND Welcome msg
-			
+
 			Connection[i] = userConnection;
 			counter++;
 			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL);
 		}
 	}
-	
+
 	return 0;
 }
 
