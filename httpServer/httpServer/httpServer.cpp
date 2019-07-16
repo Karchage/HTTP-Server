@@ -3,55 +3,117 @@
 #include <fstream>
 #include <istream>
 #include <sstream>
+#include <string>
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 #include <set>
 #include <vector>
 #include <iterator>
 #include <algorithm>
+#include <filesystem>
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
 #pragma warning (disable : 4996)
 #pragma comment (lib, "Ws2_32.lib")
+
 
 SOCKET Connection[100];
 int counter = 0;
 void ClientHandler(int index)
 {
+	json j;
 	const int max_client_buffer_size = 60000;
 	char buf[max_client_buffer_size];
-
-	recv(Connection[index], buf, max_client_buffer_size, 0);
-	int del;
-	int del2;
-	std::string iss = buf;
-	std::string content;
-	int cont;
+	bool getfile = true;
+	int codereq;
+	int result = recv(Connection[index], buf, max_client_buffer_size, 0);
+	buf[result] = '\0';
+	std::stringstream iss(buf);
+	std::vector <std::string> vectorParsing((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
 	std::string htmlFile;
+	std::string content = "<h1>404</h1>";
+	std::stringstream response_body;
+	if(vectorParsing.size() >= 3 && vectorParsing[0] == "GET")
+	{
+		htmlFile = vectorParsing[1];
+		if (htmlFile == "/" || htmlFile == "/files" )
+		{
 
+
+			for (auto &p : std::experimental::filesystem::directory_iterator(std::experimental::filesystem::path() = "./Download"))
+			{
+				if (std::experimental::filesystem::is_regular_file(p))
+				{
+					j[std::experimental::filesystem::path(p).filename().string()] = {"Size" ,std::to_string(std::experimental::filesystem::file_size(p)) } ;
+
+				}
+			}
+			response_body << j;
+			getfile = false;
+		}
+		if (htmlFile != "" || htmlFile != "/")
+		{
+			htmlFile.erase(htmlFile.find('/'), 1);
+		}
+	}
+	/*int del;
+	int del2;
+	
+	
+	int cont;
+	
+	
 	//char gete[] = "GET /123214.txt HTTP/1.1\r\n";
 	del = iss.find("\r\n");
 	htmlFile = iss.substr(0, del);
 	del = htmlFile.find("HTTP");
 	del2 = htmlFile.find("/") + 1;
 	htmlFile = htmlFile.substr(del2, del - del2);
-
+	*/
 	std::stringstream response; // сюда будет записываться ответ клиенту
+	
+	std::ifstream f(".\\Download"+htmlFile);
 
-	std::ifstream f(htmlFile);
-
-	std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-	content = str;
+	if (f.good())
+	{
+		std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+		content = str;
+		codereq = 200;
+	}
+	else if(getfile == true)
+	{
+		codereq = 404;
+	}
+	
 
 
 	f.close();
 	// Формируем весь ответ вместе с заголовками
-	response << "HTTP/1.1 200 OK \r\n"
-		<< "Content-Length: "
-		<< content.size()
-		<< "\r\n\r\n"
-		<< content;
-	int size = response.str().length() + content.size();
+	
+	if (getfile == false)
+	{
+		response << "HTTP/1.1 200 OK \r\n"
+			//<< "Content-Type : application/json"<< "\r\n"
+			<< "Content-Length: "
+			<< response_body.str().length()
+			<< "\r\n\r\n"
+			<< response_body.str();
+		send(Connection[index], response.str().c_str(), response.str().length(), NULL);
+	}
+	else
+	{
+		response << "HTTP/1.1" << codereq<<" OK \r\n"
+			<< "Content-Length: "
+			<< content.size()
+			<< "\r\n\r\n"
+			<< content;
+		int size = response.str().length() + content.size();
+		send(Connection[index], response.str().c_str(), size, NULL);
+	}
+	
+	
 	// Отправляем ответ клиенту с помощью функции send*/
-	send(Connection[index], response.str().c_str(), size, NULL);
+	
 
 
 	closesocket(Connection[index]);
