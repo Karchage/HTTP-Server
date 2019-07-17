@@ -147,7 +147,6 @@ int main(int argc, char* argv[])
 	bind(lsock, (SOCKADDR*)&adrSock, sizeof(adrSock)); //назначение
 
 
-
 	dontblockSocket(lsock);
 	listen(lsock, SOMAXCONN); // второе значение скок запрос 
 	/*

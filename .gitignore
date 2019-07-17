@@ -4,5 +4,5 @@ Client/.vs/
 /Client/Debug/
 httpServer/x64/
 Client/x64/
-/httpServer/x64/
+httpServer/httpServer/x64/
 /Client/x64/
