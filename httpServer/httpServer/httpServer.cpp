@@ -12,23 +12,52 @@
 #include <algorithm>
 #include <filesystem>
 #include "nlohmann/json.hpp"
+#define dowloadPath  ".\\Download\\"
+#define POOL_SIZE 1024
 using json = nlohmann::json;
 #pragma warning (disable : 4996)
 #pragma comment (lib, "Ws2_32.lib")
 
+typedef struct 
+{
+	SOCKET *sok;
+	char * inf;
+}getInf;
 
+
+
+#if defined (WIN32)
+static inline int poll(struct pollfd *pfd, int nfds, int timeout) { return WSAPoll(pfd, nfds, timeout); }
+#endif
+
+int set_nonblock(int fd)
+{
+	u_long flags;
+#if defined(O_NONBLOCK)
+	if (-1 == (flags = fcntl(fd, F_GETL, NULL)))
+		flags = 0;
+	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#else
+	flags = 1;
+	return ioctlsocket(fd, FIONBIO, &flags);
+#endif
+}
 SOCKET Connection[100];
 int counter = 0;
-void ClientHandler(int index)
+//class pollfd Set[POOL_SIZE];
+void ClientHandler(void * inform)
 {
+	getInf * ptr = (getInf *)inform;
+	
 	json j;
-	const int max_client_buffer_size = 60000;
-	char buf[max_client_buffer_size];
+	//const int max_client_buffer_size = 60000;
+	//char buf[max_client_buffer_size];
 	bool getfile = true;
 	int codereq;
-	int result = recv(Connection[index], buf, max_client_buffer_size, 0);
-	buf[result] = '\0';
-	std::stringstream iss(buf);
+	//int result = recv(UserConnection, buf, max_client_buffer_size, 0);
+	
+	std::stringstream iss(ptr->inf);
+	SOCKET UserConnection = *ptr->sok;
 	std::vector <std::string> vectorParsing((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
 	std::string htmlFile;
 	std::string content = "<h1>404</h1>";
@@ -56,23 +85,10 @@ void ClientHandler(int index)
 			htmlFile.erase(htmlFile.find('/'), 1);
 		}
 	}
-	/*int del;
-	int del2;
-	
-	
-	int cont;
-	
-	
-	//char gete[] = "GET /123214.txt HTTP/1.1\r\n";
-	del = iss.find("\r\n");
-	htmlFile = iss.substr(0, del);
-	del = htmlFile.find("HTTP");
-	del2 = htmlFile.find("/") + 1;
-	htmlFile = htmlFile.substr(del2, del - del2);
-	*/
+	//===============================================================================================
 	std::stringstream response; // сюда будет записываться ответ клиенту
 	
-	std::ifstream f(".\\Download"+htmlFile);
+	std::ifstream f(dowloadPath+htmlFile);
 
 	if (f.good())
 	{
@@ -89,7 +105,7 @@ void ClientHandler(int index)
 
 	f.close();
 	// Формируем весь ответ вместе с заголовками
-	
+	//=========================================================
 	if (getfile == false)
 	{
 		response << "HTTP/1.1 200 OK \r\n"
@@ -98,7 +114,7 @@ void ClientHandler(int index)
 			<< response_body.str().length()
 			<< "\r\n\r\n"
 			<< response_body.str();
-		send(Connection[index], response.str().c_str(), response.str().length(), NULL);
+		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
 	}
 	else
 	{
@@ -108,20 +124,21 @@ void ClientHandler(int index)
 			<< "\r\n\r\n"
 			<< content;
 		int size = response.str().length() + content.size();
-		send(Connection[index], response.str().c_str(), size, NULL);
+		send(UserConnection, response.str().c_str(), size, NULL);
 	}
+	
 	
 	
 	// Отправляем ответ клиенту с помощью функции send*/
 	
 
 
-	closesocket(Connection[index]);
+	//closesocket(UserConnection);
 }
 int main(int argc, char* argv[])
 {
 
-	//std::set<int> SlaveSockets;
+	std::set<int> SlaveSockets;
 
 
 	WSAData wsaData;
@@ -150,9 +167,140 @@ int main(int argc, char* argv[])
 
 
 
-	//set_nonblock(lsock);
+	set_nonblock(lsock);
 	listen(lsock, SOMAXCONN); // второе значение скок запрос 
-	SOCKET userConnection;
+	struct pollfd Set[POOL_SIZE];
+	Set[0].fd = lsock;
+	Set[0].events = POLLIN;
+
+	while (true)
+	{
+		unsigned int Index = 1;
+		for (auto Iter = SlaveSockets.begin(); Iter != SlaveSockets.end();Iter++)
+		{
+			Set[Index].fd = *Iter;
+			Set[Index].events = POLLIN;
+			Index++;
+		}
+		unsigned int SetSize = 1 + SlaveSockets.size();
+		WSAPoll(Set, SetSize, -1);
+		
+		for(unsigned int i = 0; i < SetSize; i++)
+		{
+			if (Set[i].revents & POLLIN)
+			{
+				if (i != 0)
+				{
+					char Buffer[1024];
+					int RecvSize = recv(Set[i].fd, Buffer, 1024, NULL);
+					Buffer[RecvSize] = '\0';
+					if ((RecvSize == 0) && (errno != EAGAIN))
+					{
+						shutdown(Set[i].fd, SD_BOTH);
+						closesocket(Set[i].fd);
+						SlaveSockets.erase(Set[i].fd);
+					}
+					else if (RecvSize >0)
+					{
+							/*counter = counter + 1;
+						std::cout << "new request "<<counter<<" \n";
+						json j;
+						//const int max_client_buffer_size = 60000;
+						//char buf[max_client_buffer_size];
+						bool getfile = true;
+						int codereq;
+						//int result = recv(UserConnection, buf, max_client_buffer_size, 0);
+
+						std::stringstream iss(Buffer);
+						std::vector <std::string> vectorParsing((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
+						std::string htmlFile;
+						std::string content = "<h1>404</h1>";
+						std::stringstream response_body;
+						if (vectorParsing.size() >= 3 && vectorParsing[0] == "GET")
+						{
+							htmlFile = vectorParsing[1];
+							if (htmlFile == "/" || htmlFile == "/files")
+							{
+
+
+								for (auto &p : std::experimental::filesystem::directory_iterator(std::experimental::filesystem::path() = "./Download"))
+								{
+									if (std::experimental::filesystem::is_regular_file(p))
+									{
+										j[std::experimental::filesystem::path(p).filename().string()] = { "Size" ,std::to_string(std::experimental::filesystem::file_size(p)) };
+
+									}
+								}
+								response_body << j;
+								getfile = false;
+							}
+							if (htmlFile != "" || htmlFile != "/")
+							{
+								htmlFile.erase(htmlFile.find('/'), 1);
+							}
+						}
+						//===============================================================================================
+						std::stringstream response; // сюда будет записываться ответ клиенту
+
+						std::ifstream f(dowloadPath + htmlFile);
+
+						if (f.good())
+						{
+							std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+							content = str;
+							codereq = 200;
+						}
+						else if (getfile == true)
+						{
+							codereq = 404;
+						}
+
+
+
+						f.close();
+						// Формируем весь ответ вместе с заголовками
+						//=========================================================
+						if (getfile == false)
+						{
+							response << "HTTP/1.1 200 OK \r\n"
+								//<< "Content-Type : application/json"<< "\r\n"
+								<< "Content-Length: "
+								<< response_body.str().length()
+								<< "\r\n\r\n"
+								<< response_body.str();
+							send(Set[i].fd, response.str().c_str(), response.str().length(), NULL);
+						}
+						else
+						{
+							response << "HTTP/1.1" << codereq << " OK \r\n"
+								<< "Content-Length: "
+								<< content.size()
+								<< "\r\n\r\n"
+								<< content;
+							int size = response.str().length() + content.size();
+							send(Set[i].fd, response.str().c_str(), size, NULL);
+						}*/
+						//std::string info = Buffer;
+						
+						getInf inform;
+						inform.sok = &Set[i].fd;
+							inform.inf = Buffer;
+						
+						CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(&inform), NULL, NULL);
+					}
+				}
+				else 
+				{
+					int SlaveSocket = accept(lsock,0,0);
+					set_nonblock(SlaveSocket);
+					SlaveSockets.insert(SlaveSocket);
+				}
+			}
+		}
+	}
+
+
+	/*SOCKET userConnection;
 	for (int i = 0; i < 100; i++)
 	{
 		userConnection = accept(lsock, (SOCKADDR*)&adrSock, &sizeAddr);
@@ -169,72 +317,11 @@ int main(int argc, char* argv[])
 
 			Connection[i] = userConnection;
 			counter++;
-			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL);
+			
 		}
-	}
+	}*/
+
+	
 
 	return 0;
 }
-
-
-/*const int trueFile = 200;
-	const int badFile = 404;
-
-	char filename[FILENAME_MAX];
-	const int bufer = 1024;
-	char bufferFile[bufer];
-	bool closeConnection = false;
-	std::ifstream file;
-
-	do
-	{
-		//memset(filename, 0, FILENAME_MAX);
-		int byRecv = recv(Connection[index], filename, FILENAME_MAX, NULL); //Имя файла
-		if (byRecv == 0 || byRecv == -1)
-		{
-			closeConnection = true;
-		}
-
-		file.open(filename, std::ios::binary); //Открываем поток файла в бинарке
-		if (file.is_open())
-		{
-			int sendInf = send(Connection[index], (char*)&trueFile, sizeof(int), NULL); //нахождение файла сделать если не найден прерывать
-			if (sendInf == 0 || sendInf == -1)
-			{
-				closeConnection = true;
-			}
-
-			file.seekg(0, std::ios::end); // Размер файла
-			long fileSize = file.tellg(); // Текущая позиция =  размер файла
-			sendInf = send(Connection[index], (char*)&fileSize, sizeof(long), NULL); // Тож проверку запилить
-			if (sendInf == 0 || sendInf == -1)
-			{
-				closeConnection = true;
-			}
-			file.seekg(0, std::ios::beg); // Сдвигаем на начало
-			do
-			{
-				file.read(bufferFile, bufer);
-				if (file.gcount() > 0)
-				{
-					sendInf = send(Connection[index], bufferFile, file.gcount(), NULL);
-				}
-				if (sendInf == 0 || sendInf == -1)
-				{
-					closeConnection = true;
-					break;
-				}
-
-			} while (file.gcount() > 0);
-			file.close();
-		}
-		else
-		{
-			int sendInf = send(index, (char*)&badFile, sizeof(int), NULL);
-			if (sendInf == 0 || sendInf == -1)
-			{
-				closeConnection = true;
-			}
-		}
-
-	} while (!closeConnection);*/
