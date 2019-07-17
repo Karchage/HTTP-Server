@@ -1,6 +1,8 @@
-﻿  pch.cpp
-  httpServer.cpp
-C:\Users\glebk\Desktop\http-server\httpServer\httpServer\httpServer.cpp(41,18): warning C4244:  инициализация: преобразование "std::streamoff" в "long", возможна потеря данных
-C:\Users\glebk\Desktop\http-server\httpServer\httpServer\httpServer.cpp(53,68): warning C4244:  аргумент: преобразование "std::streamsize" в "int", возможна потеря данных
-C:\Users\glebk\Desktop\http-server\httpServer\httpServer\httpServer.cpp(122,74): warning C4312:  приведение типов: преобразование из "int" в "LPVOID" большего размера
-  httpServer.vcxproj -> C:\Users\glebk\Desktop\http-server\httpServer\x64\Debug\httpServer.exe
+﻿  httpServer.cpp
+C:\Users\glebk\Desktop\HTTP-Server\httpServer\httpServer\httpServer.cpp(105,77): warning C4267:  аргумент: преобразование из "size_t" в "int"; возможна потеря данных
+C:\Users\glebk\Desktop\HTTP-Server\httpServer\httpServer\httpServer.cpp(114,54): warning C4267:  инициализация: преобразование из "size_t" в "int"; возможна потеря данных
+C:\Users\glebk\Desktop\HTTP-Server\httpServer\httpServer\httpServer.cpp(151,18): warning C4244:  аргумент: преобразование "SOCKET" в "int", возможна потеря данных
+C:\Users\glebk\Desktop\HTTP-Server\httpServer\httpServer\httpServer.cpp(174,58): warning C4267:  инициализация: преобразование из "size_t" в "unsigned int"; возможна потеря данных
+C:\Users\glebk\Desktop\HTTP-Server\httpServer\httpServer\httpServer.cpp(190,41): warning C4244:  аргумент: преобразование "SOCKET" в "const int", возможна потеря данных
+C:\Users\glebk\Desktop\HTTP-Server\httpServer\httpServer\httpServer.cpp(203,31): warning C4244:  инициализация: преобразование "SOCKET" в "int", возможна потеря данных
+  httpServer.vcxproj -> C:\Users\glebk\Desktop\HTTP-Server\httpServer\x64\Debug\httpServer.exe
