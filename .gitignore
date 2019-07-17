@@ -2,5 +2,7 @@ httpServer/.vs/
 Client/.vs/
 /httpServer/Debug/
 /Client/Debug/
+httpServer/x64/
+Client/x64/
 /httpServer/x64/
 /Client/x64/
