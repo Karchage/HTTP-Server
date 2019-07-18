@@ -93,11 +93,11 @@ void ClientHandler(void * inform)
 	if (getfile == false)
 	{
 		response << "HTTP/1.1 200 OK \r\n"
-			//<< "Content-Type : application/json"<< "\r\n"
+			<< "Content-Type : application/json"<< "\r\n"
 			<< "Content-Length: "
 			<< response_body.str().length()
 			<< "\r\n\r\n"
-			<< response_body.str();
+			<< j;
 		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
 	}
 	else
