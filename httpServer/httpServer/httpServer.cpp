@@ -12,7 +12,8 @@ typedef struct
 	SOCKET *sok;
 	char * inf;
 }getInf;
-
+void loadFileInContent(std::string dowloadPath, std::string htmlFile, std::string *content, uint16_t *codereq, bool getfile);
+void sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson, bool getfile, json jsonFIle);
 
 
 uint8_t dontblockSocket(SOCKET fd)
@@ -34,12 +35,9 @@ void ClientHandler(void * inform)
 	boost::property_tree::ptree tree;
 	boost::property_tree::read_xml("./settings.xml", tree);
 	std::string dowloadPath = tree.get <std::string >("server.server_info.dowloadPath");
-	json j;
-
+	json jsonFIle;
 	bool getfile = true;
 	uint16_t codereq;
-
-
 	std::stringstream iss(ptr->inf);
 	SOCKET UserConnection = *ptr->sok;
 	std::vector <std::string> vectorParsing((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
@@ -57,11 +55,11 @@ void ClientHandler(void * inform)
 			{
 				if (std::experimental::filesystem::is_regular_file(p))
 				{
-					j[std::experimental::filesystem::path(p).filename().string()] = { "Size" ,std::to_string(std::experimental::filesystem::file_size(p)) };
+					jsonFIle[std::experimental::filesystem::path(p).filename().string()] = { "Size" ,std::to_string(std::experimental::filesystem::file_size(p)) };
 
 				}
 			}
-			response_body << j;
+			response_body << jsonFIle;
 			getfile = false;
 		}
 		if (htmlFile != "" || htmlFile != "/")
@@ -69,47 +67,10 @@ void ClientHandler(void * inform)
 			htmlFile.erase(htmlFile.find('/'), 1);
 		}
 	}
-	//===============================================================================================
-	std::stringstream response; // сюда будет записываться ответ клиенту
 
-	std::ifstream f(dowloadPath + htmlFile);
+	loadFileInContent(dowloadPath, htmlFile, &content, &codereq, getfile);
 
-	if (f.good())
-	{
-		std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-		content = str;
-		codereq = 200;
-	}
-	else if (getfile == true)
-	{
-		codereq = 404;
-	}
-
-
-
-	f.close();
-	// Формируем весь ответ вместе с заголовками
-	//=========================================================
-	if (getfile == false)
-	{
-		response << "HTTP/1.1 200 OK \r\n"
-			<< "Content-Type : application/json"<< "\r\n"
-			<< "Content-Length: "
-			<< response_body.str().length()
-			<< "\r\n\r\n"
-			<< j;
-		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
-	}
-	else
-	{
-		response << "HTTP/1.1" << codereq << " OK \r\n"
-			<< "Content-Length: "
-			<< content.size()
-			<< "\r\n\r\n"
-			<< content;
-		uint32_t size = response.str().length() + content.size();
-		send(UserConnection, response.str().c_str(), size, NULL);
-	}
+	sendContentToUser(UserConnection, codereq, content, response_body.str().length(), getfile, jsonFIle);
 }
 	
 
@@ -200,4 +161,44 @@ int main(int argc, char* argv[])
 		}
 	}
 	return 0;
+}
+void loadFileInContent(std::string dowloadPath, std::string htmlFile, std::string *content, uint16_t *codereq, bool getfile)
+{
+	std::ifstream fileload(dowloadPath + htmlFile);
+
+	if (fileload.good())
+	{
+		std::string str((std::istreambuf_iterator<char>(fileload)), std::istreambuf_iterator<char>());
+		*content = str;
+		*codereq = 200;
+	}
+	else if (getfile == true)
+	{
+		*codereq = 404;
+	}
+	fileload.close();
+}
+void sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson, bool getfile, json jsonFIle)
+{
+	std::stringstream response;
+	if (getfile == false)
+	{
+		response << "HTTP/1.1 200 OK \r\n"
+			<< "Content-Type : application/json" << "\r\n"
+			<< "Content-Length: "
+			<< sizeJson
+			<< "\r\n\r\n"
+			<< jsonFIle;
+		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
+	}
+	else
+	{
+		response << "HTTP/1.1" << codereq << " OK \r\n"
+			<< "Content-Length: "
+			<< content.size()
+			<< "\r\n\r\n"
+			<< content;
+		uint32_t size = response.str().length() + content.size();
+		send(UserConnection, response.str().c_str(), size, NULL);
+	}
 }
