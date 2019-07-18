@@ -1,14 +1,8 @@
 ﻿#include "pch.h"
 #include "httpServer.h"
-
-//Define
-#define dowloadPath  ".\\Download\\"
-#define SET_SIZE 1024
-#define BUFF_SIZE 1024
-#define IP_INFORM "127.0.0.1"
-#define PORT_INFORM 8015
-
-
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+#include <boost/property_tree/ptree_fwd.hpp>
 
 using json = nlohmann::json;
 #pragma comment (lib, "Ws2_32.lib")
@@ -21,7 +15,7 @@ typedef struct
 
 
 
-int dontblockSocket(int fd)
+uint8_t dontblockSocket(SOCKET fd)
 {
 	u_long flags;
 #if defined(O_NONBLOCK)
@@ -37,11 +31,13 @@ int dontblockSocket(int fd)
 void ClientHandler(void * inform)
 {
 	getInf * ptr = (getInf *)inform;
-
+	boost::property_tree::ptree tree;
+	boost::property_tree::read_xml("./settings.xml", tree);
+	std::string dowloadPath = tree.get <std::string >("server.server_info.dowloadPath");
 	json j;
 
 	bool getfile = true;
-	int codereq;
+	uint16_t codereq;
 
 
 	std::stringstream iss(ptr->inf);
@@ -111,7 +107,7 @@ void ClientHandler(void * inform)
 			<< content.size()
 			<< "\r\n\r\n"
 			<< content;
-		int size = response.str().length() + content.size();
+		uint32_t size = response.str().length() + content.size();
 		send(UserConnection, response.str().c_str(), size, NULL);
 	}
 }
@@ -119,23 +115,26 @@ void ClientHandler(void * inform)
 
 int main(int argc, char* argv[])
 {
+	boost::property_tree::ptree tree;
+	boost::property_tree::read_xml("./settings.xml", tree);
+	//constexpr uint16_t SET_SIZE = 1024;
+	std::string IP_INFORMs = tree.get <std::string > ("server.server_info.ip");
+	uint16_t PORT_INFORM = tree.get <uint16_t>("server.server_info.port");
 
-	std::set<int> userConnectionSockets;
-
-
+	std::set<SOCKET> userConnectionSockets;
 	WSAData wsaData;
 	WORD Version = MAKEWORD(2, 1); //дает версию 
 	if (WSAStartup(Version, &wsaData) != 0) //Грузим библ
 	{
 		std::cout << "Error: Library not loaded" << std::endl;
-		exit(1);
+		return 1;
 	}
 	else std::cout << "Library connected" << std::endl;
 
 	SOCKADDR_IN adrSock; //хранение адреса
-	static const char LOCAL_HOST[] = IP_INFORM;
-	int sizeAddr = sizeof(adrSock);
-	inet_pton(AF_INET, LOCAL_HOST, &(adrSock.sin_addr));
+
+	inet_pton(AF_INET, IP_INFORMs.c_str(), &(adrSock.sin_addr));
+	
 	adrSock.sin_port = htons(PORT_INFORM);
 	adrSock.sin_family = AF_INET;
 
@@ -149,57 +148,51 @@ int main(int argc, char* argv[])
 
 	dontblockSocket(lsock);
 	listen(lsock, SOMAXCONN); // второе значение скок запрос 
-	/*
-	typedef struct pollfd {
 
-    SOCKET  fd;
-    SHORT   events;
-    SHORT   revents;
-
-	} WSAPOLLFD, *PWSAPOLLFD, FAR *LPWSAPOLLFD;*/
-	struct pollfd Set[SET_SIZE];
-	Set[0].fd = lsock;
-	Set[0].events = POLLIN;
+	struct pollfd SetUser[1024];
+	SetUser[0].fd = lsock;
+	SetUser[0].events = POLLIN;
 
 	while (true)
 	{
-		unsigned int Index = 1;
+		uint16_t Index = 1;
 		for (auto Iter = userConnectionSockets.begin(); Iter != userConnectionSockets.end();Iter++)
 		{
-			Set[Index].fd = *Iter;
-			Set[Index].events = POLLIN;
+			SetUser[Index].fd = *Iter;
+			SetUser[Index].events = POLLIN;
 			Index++;
 		}
-		unsigned int SetSize = 1 + userConnectionSockets.size();
-		WSAPoll(Set, SetSize, -1);
 		
-		for(unsigned int i = 0; i < SetSize; i++)
+		uint16_t SetSize = 1 + userConnectionSockets.size();
+		WSAPoll(SetUser, SetSize, -1);
+		
+		for(uint16_t i = 0; i < SetSize; i++)
 		{
-			if (Set[i].revents & POLLIN)
+			if (SetUser[i].revents & POLLIN)
 			{
 				if (i != 0)
 				{
-					char Buffer[BUFF_SIZE];
-					int RecvSize = recv(Set[i].fd, Buffer, BUFF_SIZE, NULL);
+					char Buffer[1024];
+					uint16_t RecvSize = recv(SetUser[i].fd, Buffer, sizeof(Buffer), NULL);
 					Buffer[RecvSize] = '\0';
 					if ((RecvSize == 0) && (errno != EAGAIN))
 					{
-						shutdown(Set[i].fd, SD_BOTH);
-						closesocket(Set[i].fd);
-						userConnectionSockets.erase(Set[i].fd);
+						shutdown(SetUser[i].fd, SD_BOTH);
+						closesocket(SetUser[i].fd);
+						userConnectionSockets.erase(SetUser[i].fd);
 					}
 					else if (RecvSize >0)
 					{
 						std::cout << "Request from: \n" << Buffer;
 						getInf inform;
-						inform.sok = &Set[i].fd;
+						inform.sok = &SetUser[i].fd;
 						inform.inf = Buffer;
 						CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(&inform), NULL, NULL);
 					}
 				}
 				else 
 				{
-					int userConnectionSocket = accept(lsock,0,0);
+					SOCKET userConnectionSocket = accept(lsock,0,0);
 					dontblockSocket(userConnectionSocket);
 					userConnectionSockets.insert(userConnectionSocket);
 				}
