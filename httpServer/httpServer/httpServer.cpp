@@ -6,14 +6,59 @@
 
 using json = nlohmann::json;
 #pragma comment (lib, "Ws2_32.lib")
-
-typedef struct 
+typedef struct
 {
 	SOCKET *sok;
 	char * inf;
 }getInf;
-void loadFileInContent(std::string dowloadPath, std::string htmlFile, std::string *content, uint16_t *codereq, bool getfile);
-void sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson, bool getfile, json jsonFIle);
+
+
+class clientRequestContent
+{
+public:
+	void loadFileInContent(std::string dowloadPath, std::string htmlFile, std::string *content, uint16_t *codereq, bool getfile)
+	{
+		std::ifstream fileload(dowloadPath + htmlFile);
+
+		if (fileload.good())
+		{
+			std::string str((std::istreambuf_iterator<char>(fileload)), std::istreambuf_iterator<char>());
+			*content = str;
+			*codereq = 200;
+		}
+		else if (getfile == true)
+		{
+			*codereq = 404;
+		}
+		fileload.close();
+	}
+	void sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson, bool getfile, json jsonFIle)
+	{
+		std::stringstream response;
+		if (getfile == false)
+		{
+			response << "HTTP/1.1 200 OK \r\n"
+				<< "Content-Type : application/json" << "\r\n"
+				<< "Content-Length: "
+				<< sizeJson
+				<< "\r\n\r\n"
+				<< jsonFIle;
+			send(UserConnection, response.str().c_str(), response.str().length(), NULL);
+		}
+		else
+		{
+			response << "HTTP/1.1" << codereq << " OK \r\n"
+				<< "Content-Length: "
+				<< content.size()
+				<< "\r\n\r\n"
+				<< content;
+			uint32_t size = response.str().length() + content.size();
+			send(UserConnection, response.str().c_str(), size, NULL);
+		}
+	}
+};
+
+
 
 
 uint8_t dontblockSocket(SOCKET fd)
@@ -28,9 +73,9 @@ uint8_t dontblockSocket(SOCKET fd)
 	return ioctlsocket(fd, FIONBIO, &flags);
 #endif
 }
-
 void ClientHandler(void * inform)
 {
+	clientRequestContent Client;
 	getInf * ptr = (getInf *)inform;
 	boost::property_tree::ptree tree;
 	boost::property_tree::read_xml("./settings.xml", tree);
@@ -68,14 +113,13 @@ void ClientHandler(void * inform)
 		}
 	}
 
-	loadFileInContent(dowloadPath, htmlFile, &content, &codereq, getfile);
-
-	sendContentToUser(UserConnection, codereq, content, response_body.str().length(), getfile, jsonFIle);
+	Client.loadFileInContent(dowloadPath, htmlFile, &content, &codereq, getfile);
+	Client.sendContentToUser(UserConnection, codereq, content, response_body.str().length(), getfile, jsonFIle);
 }
-	
 
 int main(int argc, char* argv[])
 {
+
 	boost::property_tree::ptree tree;
 	boost::property_tree::read_xml("./settings.xml", tree);
 	//constexpr uint16_t SET_SIZE = 1024;
@@ -162,43 +206,4 @@ int main(int argc, char* argv[])
 	}
 	return 0;
 }
-void loadFileInContent(std::string dowloadPath, std::string htmlFile, std::string *content, uint16_t *codereq, bool getfile)
-{
-	std::ifstream fileload(dowloadPath + htmlFile);
 
-	if (fileload.good())
-	{
-		std::string str((std::istreambuf_iterator<char>(fileload)), std::istreambuf_iterator<char>());
-		*content = str;
-		*codereq = 200;
-	}
-	else if (getfile == true)
-	{
-		*codereq = 404;
-	}
-	fileload.close();
-}
-void sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson, bool getfile, json jsonFIle)
-{
-	std::stringstream response;
-	if (getfile == false)
-	{
-		response << "HTTP/1.1 200 OK \r\n"
-			<< "Content-Type : application/json" << "\r\n"
-			<< "Content-Length: "
-			<< sizeJson
-			<< "\r\n\r\n"
-			<< jsonFIle;
-		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
-	}
-	else
-	{
-		response << "HTTP/1.1" << codereq << " OK \r\n"
-			<< "Content-Length: "
-			<< content.size()
-			<< "\r\n\r\n"
-			<< content;
-		uint32_t size = response.str().length() + content.size();
-		send(UserConnection, response.str().c_str(), size, NULL);
-	}
-}
