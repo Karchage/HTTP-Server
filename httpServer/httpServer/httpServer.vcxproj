@@ -154,10 +154,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="clientRequestContent.h" />
+    <ClInclude Include="httpServer.h" />
     <ClInclude Include="nlohmann\json.hpp" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="userConnect.h" />
+    <ClInclude Include="webServer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="clientRequestContent.cpp" />
     <ClCompile Include="httpServer.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -165,6 +170,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="userConnect.cpp" />
+    <ClCompile Include="webServer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="settings.xml">
