@@ -12,7 +12,18 @@ typedef struct
 	char * inf;
 }getInf;
 
-
+uint8_t dontblockSocket(SOCKET fd)
+{
+	u_long flags;
+#if defined(O_NONBLOCK)
+	if (-1 == (flags = fcntl(fd, F_GETL, NULL)))
+		flags = 0;
+	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#else
+	flags = 1;
+	return ioctlsocket(fd, FIONBIO, &flags);
+#endif
+}
 class clientRequestContent
 {
 public:
@@ -57,22 +68,6 @@ public:
 		}
 	}
 };
-
-
-
-
-uint8_t dontblockSocket(SOCKET fd)
-{
-	u_long flags;
-#if defined(O_NONBLOCK)
-	if (-1 == (flags = fcntl(fd, F_GETL, NULL)))
-		flags = 0;
-	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#else
-	flags = 1;
-	return ioctlsocket(fd, FIONBIO, &flags);
-#endif
-}
 void ClientHandler(void * inform)
 {
 	clientRequestContent Client;
@@ -116,94 +111,119 @@ void ClientHandler(void * inform)
 	Client.loadFileInContent(dowloadPath, htmlFile, &content, &codereq, getfile);
 	Client.sendContentToUser(UserConnection, codereq, content, response_body.str().length(), getfile, jsonFIle);
 }
-
-int main(int argc, char* argv[])
+class webServer
 {
-
-	boost::property_tree::ptree tree;
-	boost::property_tree::read_xml("./settings.xml", tree);
-	//constexpr uint16_t SET_SIZE = 1024;
-	std::string IP_INFORMs = tree.get <std::string > ("server.server_info.ip");
-	uint16_t PORT_INFORM = tree.get <uint16_t>("server.server_info.port");
-
-	std::set<SOCKET> userConnectionSockets;
-	WSAData wsaData;
-	WORD Version = MAKEWORD(2, 1); //дает версию 
-	if (WSAStartup(Version, &wsaData) != 0) //Грузим библ
+public:
+	std::string ipInform;
+	uint16_t portInform;
+	void webServerRun()
 	{
-		std::cout << "Error: Library not loaded" << std::endl;
-		return 1;
-	}
-	else std::cout << "Library connected" << std::endl;
-
-	SOCKADDR_IN adrSock; //хранение адреса
-
-	inet_pton(AF_INET, IP_INFORMs.c_str(), &(adrSock.sin_addr));
-	
-	adrSock.sin_port = htons(PORT_INFORM);
-	adrSock.sin_family = AF_INET;
-
-	SOCKET lsock = socket(AF_INET, SOCK_STREAM, NULL);
-	if (lsock == -1)
-	{
-		std::cout << "Error : Invalid socket" << std::endl;
-	}
-	bind(lsock, (SOCKADDR*)&adrSock, sizeof(adrSock)); //назначение
-
-
-	dontblockSocket(lsock);
-	listen(lsock, SOMAXCONN); // второе значение скок запрос 
-
-	struct pollfd SetUser[1024];
-	SetUser[0].fd = lsock;
-	SetUser[0].events = POLLIN;
-
-	while (true)
-	{
-		uint16_t Index = 1;
-		for (auto Iter = userConnectionSockets.begin(); Iter != userConnectionSockets.end();Iter++)
+		WSAData wsaData;
+		WORD Version = MAKEWORD(2, 1); //дает версию 
+		if (WSAStartup(Version, &wsaData) != 0) //Грузим библ
 		{
-			SetUser[Index].fd = *Iter;
-			SetUser[Index].events = POLLIN;
-			Index++;
+			std::cout << "Error: Library not loaded" << std::endl;
 		}
-		
-		uint16_t SetSize = 1 + userConnectionSockets.size();
-		WSAPoll(SetUser, SetSize, -1);
-		
-		for(uint16_t i = 0; i < SetSize; i++)
+		else std::cout << "Library connected" << std::endl;
+
+		SOCKADDR_IN adrSock; //хранение адреса
+
+		inet_pton(AF_INET, ipInform.c_str(), &(adrSock.sin_addr));
+
+		adrSock.sin_port = htons(portInform);
+		adrSock.sin_family = AF_INET;
+
+		SOCKET lsock = socket(AF_INET, SOCK_STREAM, NULL);
+		if (lsock == -1)
 		{
-			if (SetUser[i].revents & POLLIN)
+			std::cout << "Error : Invalid socket" << std::endl;
+		}
+		bind(lsock, (SOCKADDR*)&adrSock, sizeof(adrSock)); //назначение
+
+
+		dontblockSocket(lsock);
+		listen(lsock, SOMAXCONN); // второе значение скок запрос 
+		getPoll(lsock);
+	}
+private:
+	void getPoll(SOCKET lsock)
+	{
+		std::set<SOCKET> userConnectionSockets;
+		struct pollfd SetUser[1024];
+		SetUser[0].fd = lsock;
+		SetUser[0].events = POLLIN;
+
+		while (true)
+		{
+			uint16_t Index = 1;
+			for (auto Iter = userConnectionSockets.begin(); Iter != userConnectionSockets.end(); Iter++)
 			{
-				if (i != 0)
+				SetUser[Index].fd = *Iter;
+				SetUser[Index].events = POLLIN;
+				Index++;
+			}
+
+			uint16_t SetSize = 1 + userConnectionSockets.size();
+			WSAPoll(SetUser, SetSize, -1);
+
+			for (uint16_t i = 0; i < SetSize; i++)
+			{
+				if (SetUser[i].revents & POLLIN)
 				{
-					char Buffer[1024];
-					uint16_t RecvSize = recv(SetUser[i].fd, Buffer, sizeof(Buffer), NULL);
-					Buffer[RecvSize] = '\0';
-					if ((RecvSize == 0) && (errno != EAGAIN))
+					if (i != 0)
 					{
-						shutdown(SetUser[i].fd, SD_BOTH);
-						closesocket(SetUser[i].fd);
-						userConnectionSockets.erase(SetUser[i].fd);
+						char Buffer[1024];
+						uint16_t RecvSize = recv(SetUser[i].fd, Buffer, sizeof(Buffer), NULL);
+						Buffer[RecvSize] = '\0';
+						if ((RecvSize == 0) && (errno != EAGAIN))
+						{
+							shutdown(SetUser[i].fd, SD_BOTH);
+							closesocket(SetUser[i].fd);
+							userConnectionSockets.erase(SetUser[i].fd);
+						}
+						else if (RecvSize > 0)
+						{
+							std::cout << "Request from: \n" << Buffer;
+							getInf inform;
+							inform.sok = &SetUser[i].fd;
+							inform.inf = Buffer;
+							CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(&inform), NULL, NULL);
+						}
 					}
-					else if (RecvSize >0)
+					else
 					{
-						std::cout << "Request from: \n" << Buffer;
-						getInf inform;
-						inform.sok = &SetUser[i].fd;
-						inform.inf = Buffer;
-						CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(&inform), NULL, NULL);
+						SOCKET userConnectionSocket = accept(lsock, 0, 0);
+						dontblockSocket(userConnectionSocket);
+						userConnectionSockets.insert(userConnectionSocket);
 					}
-				}
-				else 
-				{
-					SOCKET userConnectionSocket = accept(lsock,0,0);
-					dontblockSocket(userConnectionSocket);
-					userConnectionSockets.insert(userConnectionSocket);
 				}
 			}
 		}
 	}
+
+};
+
+
+
+
+int main(int argc, char* argv[])
+{
+	webServer server;
+
+	boost::property_tree::ptree tree;
+	boost::property_tree::read_xml("./settings.xml", tree);
+	//constexpr uint16_t SET_SIZE = 1024;
+	server.ipInform = tree.get <std::string >("server.server_info.ip");
+	server.portInform = tree.get <uint16_t>("server.server_info.port");
+
+	if (server.ipInform != "" && server.portInform != NULL)
+	{
+		server.webServerRun();
+	}
+
+
+	
+	
 	return 0;
 }
 
