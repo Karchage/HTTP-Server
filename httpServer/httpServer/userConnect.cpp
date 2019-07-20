@@ -24,7 +24,7 @@ void userConnect::ClientHandler(userConnect User)
 	if (vectorParsing.size() >= 3 && vectorParsing[0] == "GET")
 	{
 		htmlFile = vectorParsing[1];
-		if (htmlFile == "/" || htmlFile == "/files")
+		if (htmlFile == "/files")
 		{
 
 
@@ -39,7 +39,11 @@ void userConnect::ClientHandler(userConnect User)
 			response_body << jsonFIle;
 			getfile = false;
 		}
-		if (htmlFile != "" || htmlFile != "/")
+		else if(htmlFile == "/")
+		{
+			htmlFile = "/help.html";
+		}
+		if (htmlFile != "")
 		{
 			htmlFile.erase(htmlFile.find('/'), 1);
 		}

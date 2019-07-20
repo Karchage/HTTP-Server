@@ -4,6 +4,10 @@
 
 void clientRequestContent::loadFileInContent(std::string dowloadPath, std::string htmlFile, std::string *content, uint16_t *codereq, bool getfile)
 {
+	if (htmlFile == "help.html")
+	{
+		dowloadPath = ".//web//";
+	}
 	std::ifstream fileload(dowloadPath + htmlFile);
 
 	if (fileload.good())
@@ -12,7 +16,7 @@ void clientRequestContent::loadFileInContent(std::string dowloadPath, std::strin
 		*content = str;
 		*codereq = 200;
 	}
-	else if (getfile == true)
+	else if (fileload.bad())
 	{
 		*codereq = 404;
 	}
@@ -33,12 +37,13 @@ void clientRequestContent::sendContentToUser(SOCKET UserConnection, uint16_t cod
 	}
 	else
 	{
-		response << "HTTP/1.1" << codereq << " OK \r\n"
+		response << "HTTP/1.1 " << codereq << " OK \r\n"
+			<< "Content-Type : text/html" << "\r\n"
 			<< "Content-Length: "
 			<< content.size()
 			<< "\r\n\r\n"
 			<< content;
-		uint32_t size = response.str().length() + content.size();
-		send(UserConnection, response.str().c_str(), size, NULL);
+		//uint32_t size = response.str().length() + content.size();
+		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
 	}
 }

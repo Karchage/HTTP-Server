@@ -16,7 +16,6 @@ uint8_t webServer::dontblockSocket(SOCKET fd)
 }
 void webServer::getPoll(SOCKET lsock)
 {
-
 	std::set<SOCKET> userConnectionSockets;
 	struct pollfd SetUser[1024];
 	SetUser[0].fd = lsock;
@@ -97,4 +96,20 @@ void webServer::webServerRun()
 	dontblockSocket(lsock);
 	listen(lsock, SOMAXCONN); // второе значение скок запрос 
 	getPoll(lsock);
+}
+void webServer::checkInfoFromxml()
+{
+	boost::property_tree::ptree tree;
+	boost::property_tree::read_xml("./settings.xml", tree);
+	//constexpr uint16_t SET_SIZE = 1024;
+	ipInform = tree.get <std::string >("server.server_info.ip");
+	portInform = tree.get <uint16_t>("server.server_info.port");
+	//setSizeUser = tree.get <const uint16_t>("server.server_info.port");
+
+	if (ipInform != "" && portInform != NULL)
+	{
+		std::cout << "Run server" << std::endl;
+		webServerRun();
+	}
+	else std::cout << "Error: Check config file" << std::endl;
 }
