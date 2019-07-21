@@ -101,10 +101,8 @@ void webServer::checkInfoFromxml()
 {
 	boost::property_tree::ptree tree;
 	boost::property_tree::read_xml("./settings.xml", tree);
-	//constexpr uint16_t SET_SIZE = 1024;
 	ipInform = tree.get <std::string >("server.server_info.ip");
 	portInform = tree.get <uint16_t>("server.server_info.port");
-	//setSizeUser = tree.get <const uint16_t>("server.server_info.port");
 
 	if (ipInform != "" && portInform != NULL)
 	{

@@ -8,7 +8,6 @@
 void userConnect::ClientHandler(userConnect User)
 {
 	clientRequestContent Client;
-	//getInf * ptr = (getInf *)inform;
 	boost::property_tree::ptree tree;
 	boost::property_tree::read_xml("./settings.xml", tree);
 	std::string dowloadPath = tree.get <std::string >("server.server_info.dowloadPath");
@@ -28,7 +27,7 @@ void userConnect::ClientHandler(userConnect User)
 		{
 
 
-			for (auto &p : std::experimental::filesystem::directory_iterator(std::experimental::filesystem::path() = "./Download"))
+			for (auto &p : std::experimental::filesystem::directory_iterator(std::experimental::filesystem::path() = dowloadPath))
 			{
 				if (std::experimental::filesystem::is_regular_file(p))
 				{
@@ -50,5 +49,5 @@ void userConnect::ClientHandler(userConnect User)
 	}
 
 	Client.loadFileInContent(dowloadPath, htmlFile, &content, &codereq, getfile);
-	Client.sendContentToUser(UserConnection, codereq, content, response_body.str().length(), getfile, jsonFIle);
+	Client.sendContentToUser(UserConnection, codereq, content, response_body.str().length(), getfile, jsonFIle,dowloadPath,htmlFile);
 }

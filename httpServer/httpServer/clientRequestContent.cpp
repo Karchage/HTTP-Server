@@ -8,21 +8,22 @@ void clientRequestContent::loadFileInContent(std::string dowloadPath, std::strin
 	{
 		dowloadPath = ".//web//";
 	}
-	std::ifstream fileload(dowloadPath + htmlFile);
-
+	std::ifstream fileload(dowloadPath + htmlFile,std::ios::binary);
+	
 	if (fileload.good())
 	{
 		std::string str((std::istreambuf_iterator<char>(fileload)), std::istreambuf_iterator<char>());
 		*content = str;
 		*codereq = 200;
 	}
-	else if (fileload.bad())
+	else
 	{
 		*codereq = 404;
 	}
 	fileload.close();
 }
-void clientRequestContent::sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson, bool getfile, json jsonFIle)
+void clientRequestContent::sendContentToUser(SOCKET UserConnection, uint16_t codereq, std::string content, uint16_t sizeJson,
+	bool getfile, json jsonFIle, std::string dowloadPath, std::string htmlFile)
 {
 	std::stringstream response;
 	if (getfile == false)
@@ -38,12 +39,30 @@ void clientRequestContent::sendContentToUser(SOCKET UserConnection, uint16_t cod
 	else
 	{
 		response << "HTTP/1.1 " << codereq << " OK \r\n"
-			<< "Content-Type : text/html" << "\r\n"
+			<< "Content-Type : "<< getFileType(dowloadPath,htmlFile) << "\r\n"
 			<< "Content-Length: "
 			<< content.size()
 			<< "\r\n\r\n"
 			<< content;
-		//uint32_t size = response.str().length() + content.size();
 		send(UserConnection, response.str().c_str(), response.str().length(), NULL);
 	}
+}
+std::string clientRequestContent :: getFileType(std::string dowloadPath, std::string htmlFile)
+{
+	std::string contentType;
+	std::map<std::string, std::string> fileType = { {".txt","text/plain"},{".png","image/png"},
+	{".zip","application/zip"},{".html","text/html"},{".rar","application/x-rar-compressed"},{".7z","application/x-7z-compressed"} };
+
+	for (auto &p : std::experimental::filesystem::directory_iterator(std::experimental::filesystem::path() = dowloadPath))
+	{
+		if (std::experimental::filesystem::is_regular_file(p))
+		{
+			if (htmlFile == std::experimental::filesystem::path(p).filename().string())
+			{
+				contentType = fileType[std::experimental::filesystem::path(p).extension().string()];
+			}
+
+		}
+	}
+	return contentType;
 }
